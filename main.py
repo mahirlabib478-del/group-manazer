@@ -22,50 +22,90 @@ def approve_request(request):
 # --- স্মার্ট রিপ্লাই ও অটো মডারেশন ---
 @bot.message_handler(func=lambda message: True)
 def auto_moderator(message):
+
     text = message.text.lower() if message.text else ""
-    
+
     # ১. এপিসোড রিলেটেড অটো রিপ্লাই
-    keywords = ["episode", "ep", "এপিসোড", "দিবেন", "কখন", "পর্ব", "ajker", "porbo", "কখন", "ajker", "den", "diben", "taratari", "তাড়াতাড়ি", "কখন দিবেন", "দেন"]
+    keywords = [
+        "episode",
+        "ep",
+        "এপিসোড",
+        "দিবেন",
+        "কখন",
+        "পর্ব",
+        "ajker",
+        "porbo",
+        "den",
+        "diben",
+        "taratari",
+        "তাড়াতাড়ি",
+        "কখন দিবেন",
+        "দেন"
+    ]
+
     if any(key in text for key in keywords):
-        bot.reply_to(message, "⏳ দয়া করে ধৈর্য ধরুন, শীঘ্রই আজকের এপিসোড আপলোড দেওয়া হবে।")
+
+        bot.reply_to(
+            message,
+            "⏳ দয়া করে ধৈর্য ধরুন, "
+            "শীঘ্রই আজকের এপিসোড আপলোড দেওয়া হবে।"
+        )
+
         return
 
-    # ২. গালিগালাজ চেক (Bad Words)
+    # ২. গালিগালাজ চেক
     if any(word in text for word in BAD_WORDS):
-        bot.delete_message(message.chat.id, message.message_id)
-        bot.send_message(message.chat.id, f"⚠️ {message.from_user.first_name}, বাজে ভাষা ব্যবহার করবেন না! এটি প্রথম ওয়ার্নিং।")
+
+        bot.delete_message(
+            message.chat.id,
+            message.message_id
+        )
+
+        bot.send_message(
+            message.chat.id,
+            f"⚠️ {message.from_user.first_name}, "
+            f"বাজে ভাষা ব্যবহার করবেন না!"
+        )
+
         return
-# ৩. এন্টি-লিংক (Link Check)
 
-     if (
-         "http" in text
-      or "t.me" in text
-      or "www." in text
-      or ".com" in text
-):
+    # ৩. এন্টি-লিংক
+    if (
+        "http" in text
+        or "t.me" in text
+        or "www." in text
+        or ".com" in text
+    ):
 
-    # User admin কিনা check
-    member = bot.get_chat_member(
-        message.chat.id,
-        message.from_user.id
-    )
+        member = bot.get_chat_member(
+            message.chat.id,
+            message.from_user.id
+        )
 
-    # Admin হলে skip করবে
-    if member.status not in ["administrator", "creator"]:
+        # Admin হলে delete করবে না
+        if member.status not in [
+            "administrator",
+            "creator"
+        ]:
 
-        # বট নিজের message delete করবে না
-        if message.from_user.id != bot.get_me().id:
+            # Bot নিজের message delete করবে না
+            if (
+                message.from_user.id
+                != bot.get_me().id
+            ):
 
-            bot.delete_message(
-                message.chat.id,
-                message.message_id
-            )
+                bot.delete_message(
+                    message.chat.id,
+                    message.message_id
+                )
 
-            bot.send_message(
-                message.chat.id,
-                f"⚠️ {message.from_user.first_name}, "
-                f"গ্রুপে লিংক দেওয়া নিষেধ!"
-            )
+                bot.send_message(
+                    message.chat.id,
+                    f"⚠️ {message.from_user.first_name}, "
+                    f"গ্রুপে লিংক দেওয়া নিষেধ!"
+                )
+
+                
 # --- FLASK (Render) ---
 @app.route('/')
 def home(): return "Manager Bot is active!"

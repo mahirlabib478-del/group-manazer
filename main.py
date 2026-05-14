@@ -37,6 +37,7 @@ def auto_moderator(message):
         return
 # ৩. এন্টি-লিংক (Link Check)
 
+text = message.text.lower()
 if (
     "http" in text
     or "t.me" in text

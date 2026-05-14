@@ -25,7 +25,7 @@ def auto_moderator(message):
     text = message.text.lower() if message.text else ""
     
     # ১. এপিসোড রিলেটেড অটো রিপ্লাই
-    keywords = ["episode", "ep", "এপিসোড", "দিবেন", "কখন", "পর্ব", "ajker", "den", "diben", "taratari", "তাড়াতাড়ি", "কখন দিবেন", "দেন"]
+    keywords = ["episode", "ep", "এপিসোড", "দিবেন", "কখন", "পর্ব", "ajker", "porbo", "কখন", "ajker", "den", "diben", "taratari", "তাড়াতাড়ি", "কখন দিবেন", "দেন"]
     if any(key in text for key in keywords):
         bot.reply_to(message, "⏳ দয়া করে ধৈর্য ধরুন, শীঘ্রই আজকের এপিসোড আপলোড দেওয়া হবে।")
         return

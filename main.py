@@ -25,9 +25,9 @@ def auto_moderator(message):
     text = message.text.lower() if message.text else ""
     
     # ১. এপিসোড রিলেটেড অটো রিপ্লাই
-    keywords = ["episode", "ep", "এপিসোড", "কখন দিবেন", "দেন"]
+    keywords = ["episode", "ep", "এপিসোড", "দিবেন", "কখন", "পর্ব", "ajker", "den", "diben", "taratari", "তাড়াতাড়ি", "কখন দিবেন", "দেন"]
     if any(key in text for key in keywords):
-        bot.reply_to(message, "⏳ দয়া করে ধৈর্য ধরুন, এডিটর কাজ করছেন। শীঘ্রই এপিসোড দেওয়া হবে।")
+        bot.reply_to(message, "⏳ দয়া করে ধৈর্য ধরুন, শীঘ্রই আজকের এপিসোড আপলোড দেওয়া হবে।")
         return
 
     # ২. গালিগালাজ চেক (Bad Words)
@@ -35,13 +35,37 @@ def auto_moderator(message):
         bot.delete_message(message.chat.id, message.message_id)
         bot.send_message(message.chat.id, f"⚠️ {message.from_user.first_name}, বাজে ভাষা ব্যবহার করবেন না! এটি প্রথম ওয়ার্নিং।")
         return
+# ৩. এন্টি-লিংক (Link Check)
 
-    # ৩. এন্টি-লিংক (Link Check)
-    if "http" in text or "t.me" in text or "www." in text or ".com" in text:
-        if message.from_user.id != bot.get_me().id: # বট নিজের লিংক ডিলিট করবে না
-            bot.delete_message(message.chat.id, message.message_id)
-            bot.send_message(message.chat.id, f"⚠️ {message.from_user.first_name}, গ্রুপে লিংক দেওয়া নিষেধ!")
+if (
+    "http" in text
+    or "t.me" in text
+    or "www." in text
+    or ".com" in text
+):
 
+    # User admin কিনা check
+    member = bot.get_chat_member(
+        message.chat.id,
+        message.from_user.id
+    )
+
+    # Admin হলে skip করবে
+    if member.status not in ["administrator", "creator"]:
+
+        # বট নিজের message delete করবে না
+        if message.from_user.id != bot.get_me().id:
+
+            bot.delete_message(
+                message.chat.id,
+                message.message_id
+            )
+
+            bot.send_message(
+                message.chat.id,
+                f"⚠️ {message.from_user.first_name}, "
+                f"গ্রুপে লিংক দেওয়া নিষেধ!"
+            )
 # --- FLASK (Render) ---
 @app.route('/')
 def home(): return "Manager Bot is active!"

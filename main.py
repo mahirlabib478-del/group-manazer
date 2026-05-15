@@ -5,8 +5,6 @@ import json
 from flask import Flask
 from time import sleep
 
-# Load environment variables
-load_dotenv()
 
 # Configuration
 TOKEN = "8954395264:AAGtLtIHsNN-HDYDCFylEBV_IJ0X7-JvSaU"

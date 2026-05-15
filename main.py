@@ -6,7 +6,7 @@ from flask import Flask
 # TOKEN এনভায়রনমেন্ট ভেরিয়েবল থেকে নেয়া হচ্ছে
 TOKEN = "8954395264:AAGtLtIHsNN-HDYDCFylEBV_IJ0X7-JvSaU"
 bot = telebot.TeleBot(TOKEN)
-ADMIN_IDS = [8538304896, 2035024902]
+
 app = Flask(__name__)
 
 # গালিগালাজের তালিকা
@@ -35,14 +35,11 @@ def auto_moderator(message):
     user_id = message.from_user.id
     user_name = message.from_user.first_name
 
-    # এডমিন চেক
-    print(f"User Name: {user_name}, User ID: {user_id}")
+    # Auto admin detect
+    admins = bot.get_chat_administrators(chat_id)
+    admin_ids = [admin.user.id for admin in admins]
 
-    if user_id in ADMIN_IDS:
-        print("ADMIN DETECTED")
-        return
-    # স্টিকার বা মিডিয়া মেসেজ চেক করা
-    if not message.text and not message.caption:
+    if user_id in admin_ids:
         return
     
     text = (message.text or message.caption).lower()

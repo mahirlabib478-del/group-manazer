@@ -8,8 +8,6 @@ from time import sleep
 
 # Configuration
 TOKEN = "8954395264:AAGtLtIHsNN-HDYDCFylEBV_IJ0X7-JvSaU"
-if not TOKEN:
-    raise ValueError("TELEGRAM_BOT_TOKEN environment variable is required!")
 
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)

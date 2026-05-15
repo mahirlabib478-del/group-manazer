@@ -22,7 +22,11 @@ def send_rules(message):
 def approve_request(request):
     try:
         bot.approve_chat_join_request(request.chat.id, request.from_user.id)
-        bot.send_message(request.chat.id, f"🌟 স্বাগতম @{request.from_user.username}! আমাদের গ্রুপে নিয়ম মেনে চলুন।")
+        name = request.from_user.first_name
+        bot.send_message(
+            request.chat.id,
+            f"🌟 স্বাগতম {name}! আমাদের গ্রুপে নিয়ম মেনে চলুন।"
+        )
     except Exception as e:
         print(f"Error in join request: {e}")
 

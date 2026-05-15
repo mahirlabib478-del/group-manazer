@@ -4,6 +4,7 @@ import re
 import asyncio
 import threading
 import logging
+from io import BytesIO
 from flask import Flask
 from telegram import Update
 from telegram.ext import (
@@ -11,9 +12,11 @@ from telegram.ext import (
     ChatJoinRequestHandler, filters, ContextTypes
 )
 from telegram.error import BadRequest, Forbidden
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 # কনফিগ
 BOT_TOKEN = "8954395264:AAF5qQGo83So7AezJB-ShloYjbGijr25tLg"
+
 DATA_FILE = "data.json"
 MAX_WARNS = 3
 
@@ -51,14 +54,23 @@ def save_data(data):
 
 db = load_data()
 
-# অ্যাডমিন চেক (উন্নত + লগিং)
+# ফন্ট সেটআপ
+FONT_PATH = "NotoSansBengali-Regular.ttf"  # প্রজেক্টে রাখা ফন্ট ফাইলের নাম
+try:
+    bengali_font = ImageFont.truetype(FONT_PATH, 40)
+    small_font = ImageFont.truetype(FONT_PATH, 24)
+except:
+    # ফাইল না থাকলে ডিফল্ট ইংরেজি ফন্ট (বাংলা সাপোর্ট করবে না)
+    bengali_font = ImageFont.load_default()
+    small_font = ImageFont.load_default()
+
+# অ্যাডমিন চেক
 async def is_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     try:
         chat = update.effective_chat
         if not chat or chat.type == 'private':
             return False
         user_id = update.effective_user.id
-        # সরাসরি get_chat_member ব্যবহার করা (context থেকে বট পাওয়া যায়)
         member = await context.bot.get_chat_member(chat.id, user_id)
         return member.status in ['creator', 'administrator']
     except (BadRequest, Forbidden) as e:
@@ -68,16 +80,62 @@ async def is_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
         logging.error(f"Unexpected error in is_admin: {e}")
         return False
 
-# মেসেজ পাঠানোর সেফ ফাংশন
 async def send_message(context: ContextTypes.DEFAULT_TYPE, chat_id: int, text: str):
     try:
         await context.bot.send_message(chat_id=chat_id, text=text)
     except Exception as e:
         logging.error(f"send_message failed: {e}")
 
-# ===== হ্যান্ডলারগুলো =====
+# ===== ইমেজ জেনারেটর =====
+def generate_welcome_image(member_name: str, group_name: str) -> BytesIO:
+    # ছবির সাইজ
+    width, height = 800, 400
+    img = Image.new("RGB", (width, height), color="#2C3E50")
+    draw = ImageDraw.Draw(img)
 
-# সাধারণ টেক্সট মেসেজ (লিংক, গালি, এপিসোড) – শুধু অ্যাডমিন বাদে
+    # গ্রেডিয়েন্ট ব্যাকগ্রাউন্ড (হালকা প্রভাব)
+    for y in range(height):
+        r = int(44 + (y / height) * 20)
+        g = int(62 + (y / height) * 40)
+        b = int(80 + (y / height) * 30)
+        draw.line([(0, y), (width, y)], fill=(r, g, b))
+
+    # সাদা ওভারলে প্যানেল
+    overlay = Image.new("RGBA", (width, height), (255, 255, 255, 50))
+    img.paste(overlay, (0, 0), overlay)
+
+    # ওয়েলকাম টেক্সট
+    draw.text((400, 100), "✨ স্বাগতম! ✨", fill="#F1C40F", font=bengali_font, anchor="mm")
+
+    # সদস্যের নাম
+    draw.text((400, 200), f"👤 {member_name}", fill="#ECF0F1", font=bengali_font, anchor="mm")
+
+    # গ্রুপের নাম (ছোট ফন্টে)
+    group_display = group_name if group_name else "আমাদের গ্রুপ"
+    draw.text((400, 280), f"🏠 {group_display}", fill="#BDC3C7", font=small_font, anchor="mm")
+
+    # নিচে ডেকোরেটিভ লাইন
+    draw.rectangle([(150, 350), (650, 355)], fill="#F1C40F")
+
+    # ইমেজ বাইটসে রূপান্তর
+    bio = BytesIO()
+    img.save(bio, format="PNG")
+    bio.seek(0)
+    return bio
+
+# ===== হ্যান্ডলার =====
+async def welcome_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat = update.effective_chat
+    for member in update.message.new_chat_members:
+        # ছবি তৈরি
+        image_data = generate_welcome_image(member.full_name, chat.title)
+        # ছবি পাঠান
+        await context.bot.send_photo(
+            chat_id=chat.id,
+            photo=image_data,
+            caption=f"🎉 {member.full_name} কে স্বাগতম!\nনিয়ম মেনে চলার অনুরোধ রইল।"
+        )
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
         return
@@ -88,13 +146,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = str(update.effective_chat.id)
     user_id = str(update.effective_user.id)
 
-    # লিংক চেক
     if re.search(LINK_REGEX, text):
         await update.message.delete()
         await send_message(context, update.effective_chat.id, "🔗 লিঙ্ক শেয়ার করা নিষেধ!")
         return
 
-    # গালি চেক
     if BAD_WORD_PATTERN.search(text):
         await update.message.delete()
         if chat_id not in db:
@@ -114,11 +170,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await send_message(context, update.effective_chat.id, f"⚠️ {update.effective_user.full_name} গালি নিষেধ! ওয়ার্নিং: {warns}/{MAX_WARNS}")
         return
 
-    # এপিসোড রিমাইন্ডার
     if EPISODE_PATTERN.search(text):
         await send_message(context, update.effective_chat.id, "📢 এপিসোড খুব শীঘ্রই দেওয়া হবে!")
 
-# /admin কমান্ড – শুধুমাত্র অ্যাডমিনের জন্য
 async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_admin(update, context):
         await update.message.delete()
@@ -126,35 +180,22 @@ async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     await send_message(context, update.effective_chat.id, "👑 অ্যাডমিন প্যানেল:\nআপনার অনুমতি আছে।")
 
-# যেকোনো কমান্ডের ভেতর লিংক চেক (যেমন /blah https://link)
 async def catch_command_links(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
         return
-    # যদি অ্যাডমিন হয়, কিছু করব না
     if await is_admin(update, context):
         return
-
     text = update.message.text
-    # লিংক খোঁজা
     if re.search(LINK_REGEX, text):
         await update.message.delete()
         await send_message(context, update.effective_chat.id, "🔗 কমান্ডের সাথে লিঙ্ক শেয়ার নিষেধ!")
-        # ইচ্ছা করলে ওয়ার্নিংও দিতে পারেন
-        # ওয়ার্নিং লজিক এখানে কল করতে পারেন
 
-# ওয়েলকাম মেসেজ
-async def welcome_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    for member in update.message.new_chat_members:
-        await send_message(context, update.effective_chat.id, f"👋 স্বাগতম {member.full_name}!\nদয়া করে গ্রুপের নিয়ম মেনে চলুন।")
-
-# জয়েন রিকোয়েস্ট অ্যাপ্রুভ
 async def approve_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
     req = update.chat_join_request
     await context.bot.approve_chat_join_request(req.chat.id, req.from_user.id)
 
 # ===== মেইন =====
 if __name__ == "__main__":
-    # Flask হেলথচেক
     app = Flask(__name__)
     @app.route('/')
     def home():
@@ -165,27 +206,17 @@ if __name__ == "__main__":
         daemon=True
     ).start()
 
-    # ইভেন্ট লুপ (Python 3.14 ফিক্স)
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
     application = ApplicationBuilder().token(BOT_TOKEN).build()
 
-    # নির্দিষ্ট কমান্ড হ্যান্ডলার
     application.add_handler(CommandHandler("start", lambda u, c: send_message(c, u.effective_chat.id, "বট সচল!")))
     application.add_handler(CommandHandler("rules", lambda u, c: send_message(c, u.effective_chat.id, "📜 নিয়ম:\n- গালি নিষেধ\n- লিঙ্ক শেয়ার নিষেধ\n- এপিসোডের জন্য বারবার জিজ্ঞাসা নিষেধ")))
     application.add_handler(CommandHandler("admin", admin_command))
-
-    # নতুন সদস্য ওয়েলকাম
     application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_member))
-
-    # জয়েন রিকোয়েস্ট
     application.add_handler(ChatJoinRequestHandler(approve_join))
-
-    # যেকোনো কমান্ডের ভেতর লিংক ধরা (সবার শেষে, যাতে start/rules/admin ইত্যাদি আগে ধরা পড়ে)
     application.add_handler(MessageHandler(filters.COMMAND, catch_command_links))
-
-    # সাধারণ টেক্সট
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     print("Bot starting...")

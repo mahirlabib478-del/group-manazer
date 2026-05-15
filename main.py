@@ -1,5 +1,4 @@
 from flask import Flask, request
-from telegram.ext import Dispatcher, CommandHandler, MessageHandler, Filters
 import os
 
 app = Flask(__name__)

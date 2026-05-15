@@ -207,6 +207,10 @@ if __name__ == "__main__":
         daemon=True
     ).start()
 
+    # ইভেন্ট লুপ তৈরি ও সেট (Python 3.14-এর জন্য জরুরি)
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
     # টেলিগ্রাম বট অ্যাপ্লিকেশন
     application = ApplicationBuilder().token(BOT_TOKEN).build()
 
@@ -219,4 +223,4 @@ if __name__ == "__main__":
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     print("Bot starting...")
-    application.run_polling()  # শুধু এটাই রাখবেন
+    application.run_polling()  # ইভেন্ট লুপ থাকায় ঠিক চলবে

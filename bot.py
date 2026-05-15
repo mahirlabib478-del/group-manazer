@@ -7,7 +7,7 @@ import logging
 from flask import Flask
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, MessageHandler,
-    ChatJoinRequestHandler, filters
+    ChatJoinRequestHandler, filters, ChatMemberHandler
 )
 
 # কনফিগ
@@ -51,32 +51,38 @@ def save_data(data):
 db = load_data()
 
 # অ্যাডমিন চেক
-async def is_admin(update):
+async def is_admin(update, context):
     try:
         chat = update.effective_chat
         if not chat or chat.type == 'private':
             return False
         member = await chat.get_member(update.effective_user.id)
         return member.status in ['creator', 'administrator']
-    except Exception:
+    except:
         return False
 
-# মেসেজ হ্যান্ডলার
+# মেসেজ পাঠানোর সেফ ফাংশন (ডিলিটের পরও কাজ করবে)
+async def send_message(context, chat_id, text):
+    await context.bot.send_message(chat_id=chat_id, text=text)
+
+# মেসেজ হ্যান্ডলার (লিংক/গালি/এপিসোড)
 async def handle_message(update, context):
     if not update.message or not update.message.text:
         return
-    if await is_admin(update):
+    if await is_admin(update, context):
         return
 
     text = update.message.text.lower()
     chat_id = str(update.effective_chat.id)
     user_id = str(update.effective_user.id)
 
+    # লিংক চেক
     if re.search(LINK_REGEX, text):
         await update.message.delete()
-        await update.message.reply_text("🔗 লিঙ্ক শেয়ার করা নিষেধ!")
+        await send_message(context, update.effective_chat.id, "🔗 লিঙ্ক শেয়ার করা নিষেধ!")
         return
 
+    # গালি চেক
     if BAD_WORD_PATTERN.search(text):
         await update.message.delete()
         if chat_id not in db:
@@ -87,17 +93,27 @@ async def handle_message(update, context):
         if warns >= MAX_WARNS:
             try:
                 await context.bot.ban_chat_member(update.effective_chat.id, user_id)
-                await update.message.reply_text("🚫 ৩ বার নিয়ম ভঙ্গের জন্য ব্যান করা হয়েছে।")
+                await send_message(context, update.effective_chat.id, f"🚫 {update.effective_user.full_name} ৩ বার নিয়ম ভঙ্গ করায় ব্যান করা হয়েছে।")
                 db[chat_id][user_id] = 0
                 save_data(db)
             except Exception as e:
                 logging.error(f"Ban failed: {e}")
         else:
-            await update.message.reply_text(f"⚠️ গালি নিষেধ! ওয়ার্নিং: {warns}/{MAX_WARNS}")
+            await send_message(context, update.effective_chat.id, f"⚠️ {update.effective_user.full_name} গালি নিষেধ! ওয়ার্নিং: {warns}/{MAX_WARNS}")
         return
 
+    # এপিসোড রিমাইন্ডার
     if EPISODE_PATTERN.search(text):
-        await update.message.reply_text("📢 এপিসোড খুব শীঘ্রই দেওয়া হবে!")
+        await send_message(context, update.effective_chat.id, "📢 এপিসোড খুব শীঘ্রই দেওয়া হবে!")
+
+# ওয়েলকাম মেসেজ (নতুন মেম্বার জয়েন)
+async def welcome_new_member(update, context):
+    for member in update.message.new_chat_members:
+        await send_message(context, update.effective_chat.id, f"👋 স্বাগতম {member.full_name}!\nদয়া করে গ্রুপের নিয়ম মেনে চলুন।")
+
+# /admin কমান্ড হ্যান্ডলার
+async def admin_command(update, context):
+    await send_message(context, update.effective_chat.id, "👑 অ্যাডমিন প্যানেল:\nএখানে আপনার অনুমতি আছে।")
 
 # জয়েন রিকোয়েস্ট অ্যাপ্রুভ
 async def approve_join(update, context):
@@ -117,16 +133,24 @@ if __name__ == "__main__":
         daemon=True
     ).start()
 
-    # ইভেন্ট লুপ তৈরি ও সেট করা (Python 3.14 এর জন্য জরুরি)
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
-    # টেলিগ্রাম বট অ্যাপ্লিকেশন
     application = ApplicationBuilder().token(BOT_TOKEN).build()
-    application.add_handler(CommandHandler("start", lambda u, c: u.message.reply_text("বট সচল!")))
-    application.add_handler(CommandHandler("rules", lambda u, c: u.message.reply_text("📜 নিয়ম: গালি নিষেধ, লিঙ্ক নিষেধ।")))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
+    # কমান্ড হ্যান্ডলার
+    application.add_handler(CommandHandler("start", lambda u, c: send_message(c, u.effective_chat.id, "বট সচল!")))
+    application.add_handler(CommandHandler("rules", lambda u, c: send_message(c, u.effective_chat.id, "📜 নিয়ম:\n- গালি নিষেধ\n- লিঙ্ক শেয়ার নিষেধ\n- এপিসোডের জন্য বারবার জিজ্ঞাসা নিষেধ")))
+    application.add_handler(CommandHandler("admin", admin_command))
+
+    # ওয়েলকাম হ্যান্ডলার (নতুন সদস্য)
+    application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_member))
+
+    # জয়েন রিকোয়েস্ট (যেসব গ্রুপে অ্যাপ্রুভাল লাগে)
     application.add_handler(ChatJoinRequestHandler(approve_join))
+
+    # সাধারণ মেসেজ হ্যান্ডলার
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     print("Bot starting...")
     application.run_polling()

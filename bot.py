@@ -14,7 +14,7 @@ from telegram.ext import (
 from telegram.error import BadRequest, Forbidden
 
 # কনফিগ
-BOT_TOKEN = "8954395264:AAF5qQGo83So7AezJB-ShloYjbGijr25tLg"
+BOT_TOKEN = "8954395264:AAFnafjU289DkUbqepSAu-4VTx7nl03mLoY"
 
 DATA_FILE = "data.json"
 MAX_WARNS = 3

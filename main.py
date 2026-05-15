@@ -5,7 +5,7 @@ from flask import Flask
 
 # TOKEN এনভায়রনমেন্ট ভেরিয়েবল থেকে নেয়া হচ্ছে
 TOKEN = "8954395264:AAGtLtIHsNN-HDYDCFylEBV_IJ0X7-JvSaU"
-ADMIN_IDS =[8538304896, 2035024902] 
+ADMIN_IDS = [8538304896, 2035024902] 
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 

@@ -1,7 +1,6 @@
 import os
 import json
 import re
-import asyncio
 import threading
 import logging
 from flask import Flask
@@ -10,23 +9,31 @@ from telegram.ext import (
     ChatJoinRequestHandler, filters
 )
 
-# CONFIG (token environment থেকে নিন)
+# ---------- কনফিগ ----------
 BOT_TOKEN = "8954395264:AAF5qQGo83So7AezJB-ShloYjbGijr25tLg"
+
 DATA_FILE = "data.json"
 MAX_WARNS = 3
-BAD_WORDS = ["শালা", "shala", "শালি", "shali", "কুত্তা", "kutta", "হারামি", "harami",
-             "হারামজাদা", "haramzada", "বালের", "baler", "বাল", "bal", "গাধা", "gadha",
-             "চুদির", "chudir", "চুদনা", "chudna", "চোদা", "choda", "মাগি", "magi",
-             "ফালতু", "faltu", "কুত্তার বাচ্চা", "kuttar baccha", "শুয়োর", "shuyor",
-             "বেয়াদব", "beyadob", "লুচ্চা", "luccha", "খানকি", "khanki", "পোদ", "pod"]
-EPISODE_KEYWORDS = ["episode", "ep", "এপিসোড", "দিবেন", "কখন", "kokhon", "diben",
-                    "দেন", "দ্রুত", "druto", "pathan", "পাঠান", "পর্ব", "ajker", "den"]
+
+BAD_WORDS = [
+    "শালা", "shala", "শালি", "shali", "কুত্তা", "kutta", "হারামি", "harami",
+    "হারামজাদা", "haramzada", "বালের", "baler", "বাল", "bal", "গাধা", "gadha",
+    "চুদির", "chudir", "চুদনা", "chudna", "চোদা", "choda", "মাগি", "magi",
+    "ফালতু", "faltu", "কুত্তার বাচ্চা", "kuttar baccha", "শুয়োর", "shuyor",
+    "বেয়াদব", "beyadob", "লুচ্চা", "luccha", "খানকি", "khanki", "পোদ", "pod"
+]
+EPISODE_KEYWORDS = [
+    "episode", "ep", "এপিসোড", "দিবেন", "কখন", "kokhon", "diben",
+    "দেন", "দ্রুত", "druto", "pathan", "পাঠান", "পর্ব", "ajker", "den"
+]
+
 LINK_REGEX = r"(https?://\S+|t\.me/\S+|@\w+)"
 BAD_WORD_PATTERN = re.compile(r'\b(?:' + '|'.join(map(re.escape, BAD_WORDS)) + r')\b')
 EPISODE_PATTERN = re.compile(r'\b(?:' + '|'.join(map(re.escape, EPISODE_KEYWORDS)) + r')\b')
 
 logging.basicConfig(level=logging.INFO)
 
+# ---------- ডাটা হ্যান্ডলিং ----------
 def load_data():
     if not os.path.exists(DATA_FILE):
         return {}
@@ -42,6 +49,7 @@ def save_data(data):
 
 db = load_data()
 
+# ---------- হেল্পার ----------
 async def is_admin(update):
     try:
         chat = update.effective_chat
@@ -52,6 +60,7 @@ async def is_admin(update):
     except Exception:
         return False
 
+# ---------- হ্যান্ডলার ----------
 async def handle_message(update, context):
     if not update.message or not update.message.text:
         return
@@ -88,15 +97,31 @@ async def handle_message(update, context):
             await update.message.reply_text(f"⚠️ গালি নিষেধ! ওয়ার্নিং: {warns}/{MAX_WARNS}")
         return
 
-    # এপিসোড চেক
+    # এপিসোড রিমাইন্ডার
     if EPISODE_PATTERN.search(text):
         await update.message.reply_text("📢 এপিসোড খুব শীঘ্রই দেওয়া হবে!")
 
+# ---------- জয়েন রিকোয়েস্ট ----------
 async def approve_join(update, context):
     req = update.chat_join_request
     await context.bot.approve_chat_join_request(req.chat.id, req.from_user.id)
 
-async def main():
+# ---------- মেইন (সিঙ্ক) ----------
+if __name__ == "__main__":
+    # Flask হেলথচেক সার্ভার (ডেমন থ্রেডে)
+    app = Flask(__name__)
+
+    @app.route('/')
+    def home():
+        return "Bot is running"
+
+    threading.Thread(
+        target=app.run,
+        kwargs={"host": "0.0.0.0", "port": 8080},
+        daemon=True
+    ).start()
+
+    # টেলিগ্রাম বট অ্যাপ্লিকেশন তৈরি
     application = ApplicationBuilder().token(BOT_TOKEN).build()
 
     application.add_handler(CommandHandler("start", lambda u, c: u.message.reply_text("বট সচল!")))
@@ -105,15 +130,5 @@ async def main():
     application.add_handler(ChatJoinRequestHandler(approve_join))
 
     print("Bot starting...")
-    await application.run_polling()
-
-if __name__ == "__main__":
-    # Flask হেলথ চেক সার্ভার
-    app = Flask(__name__)
-    @app.route('/')
-    def home():
-        return "Bot is running"
-    threading.Thread(target=app.run, kwargs={"host": "0.0.0.0", "port": 8080}, daemon=True).start()
-
-    # বট চালু
-    asyncio.run(main())
+    # এখানে asyncio.run() ব্যবহার না করে সরাসরি run_polling() কল করা হয়েছে
+    application.run_polling()

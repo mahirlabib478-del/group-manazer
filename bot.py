@@ -88,41 +88,54 @@ async def send_message(context: ContextTypes.DEFAULT_TYPE, chat_id: int, text: s
 
 # ===== ইমেজ জেনারেটর =====
 def generate_welcome_image(member_name: str, group_name: str) -> BytesIO:
-    # ছবির সাইজ
-    width, height = 800, 400
-    img = Image.new("RGB", (width, height), color="#2C3E50")
+    # আর্টবোর্ড সাইজ
+    W, H = 800, 400
+
+    # গাঢ় গ্রেডিয়েন্ট ব্যাকগ্রাউন্ড
+    img = Image.new("RGB", (W, H), "#1A1A2E")
     draw = ImageDraw.Draw(img)
+    for i in range(H):
+        r = int(26 + (i / H) * 20)   # 26 → 46
+        g = int(26 + (i / H) * 10)   # 26 → 36
+        b = int(46 + (i / H) * 30)   # 46 → 76
+        draw.line([(0, i), (W, i)], fill=(r, g, b))
 
-    # গ্রেডিয়েন্ট ব্যাকগ্রাউন্ড (হালকা প্রভাব)
-    for y in range(height):
-        r = int(44 + (y / height) * 20)
-        g = int(62 + (y / height) * 40)
-        b = int(80 + (y / height) * 30)
-        draw.line([(0, y), (width, y)], fill=(r, g, b))
+    # মাঝখানে একটি উজ্জ্বল ওভারলে প্যানেল (গ্লাস ইফেক্ট)
+    panel = Image.new("RGBA", (600, 250), (255, 255, 255, 30))
+    img.paste(panel, (100, 75), panel)
 
-    # সাদা ওভারলে প্যানেল
-    overlay = Image.new("RGBA", (width, height), (255, 255, 255, 50))
-    img.paste(overlay, (0, 0), overlay)
+    # ডেকোরেটিভ গোল্ডেন বর্ডার
+    draw.rectangle([(100, 75), (700, 325)], outline="#F1C40F", width=3)
 
-    # ওয়েলকাম টেক্সট
-    draw.text((400, 100), "✨ স্বাগতম! ✨", fill="#F1C40F", font=bengali_font, anchor="mm")
+    # টাইটেল: স্বাগতম
+    try:
+        title_font = ImageFont.truetype(FONT_PATH, 48)
+        name_font = ImageFont.truetype(FONT_PATH, 36)
+        group_font = ImageFont.truetype(FONT_PATH, 24)
+    except:
+        title_font = ImageFont.load_default()
+        name_font = ImageFont.load_default()
+        group_font = ImageFont.load_default()
 
-    # সদস্যের নাম
-    draw.text((400, 200), f"👤 {member_name}", fill="#ECF0F1", font=bengali_font, anchor="mm")
+    draw.text((W//2, 130), "✨ স্বাগতম! ✨", fill="#F1C40F", font=title_font, anchor="mm")
 
-    # গ্রুপের নাম (ছোট ফন্টে)
+    # সদস্যের নাম (বড়, সাদা)
+    draw.text((W//2, 200), f"👤 {member_name}", fill="#FFFFFF", font=name_font, anchor="mm")
+
+    # গ্রুপের নাম (ছোট, ধূসর)
     group_display = group_name if group_name else "আমাদের গ্রুপ"
-    draw.text((400, 280), f"🏠 {group_display}", fill="#BDC3C7", font=small_font, anchor="mm")
+    draw.text((W//2, 270), f"🏠 {group_display}", fill="#BDC3C7", font=group_font, anchor="mm")
 
-    # নিচে ডেকোরেটিভ লাইন
-    draw.rectangle([(150, 350), (650, 355)], fill="#F1C40F")
+    # নিচে একটি সোনালী লাইন
+    draw.rectangle([(250, 340), (550, 345)], fill="#F1C40F")
 
-    # ইমেজ বাইটসে রূপান্তর
+    # প্রোফাইল ছবি যোগ করতে চাইলে (অপশনাল)
+    # সদস্যের প্রোফাইল ফটো ডাউনলোড করে এখানে পেস্ট করতে পারেন
+
     bio = BytesIO()
     img.save(bio, format="PNG")
     bio.seek(0)
     return bio
-
 # ===== হ্যান্ডলার =====
 async def welcome_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat

@@ -4,7 +4,7 @@ import threading
 from flask import Flask
 
 # TOKEN এনভায়রনমেন্ট ভেরিয়েবল থেকে নেয়া হচ্ছে (নিরাপত্তার জন্য)
-TOKEN = os.environ.get("BOT_TOKEN", "YOUR_TOKEN_HERE")
+BOT_TOKEN = "8954395264:AAGtLtIHsNN-HDYDCFylEBV_IJ0X7-JvSaU"
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
@@ -71,7 +71,7 @@ def auto_moderator(message):
         return
 
     # ৩. এপিসোড রিলেটেড অটো রিপ্লাই
-    keywords =["episode", "ep", "এপিসোড", "দিবেন", "কখন", "পর্ব", "ajker", "den"]
+    keywords =["episode", "ep", "এপিসোড", "দিবেন", "কখন", "kokhon", "diben", "দেন", "দ্রুত", "druto", "pathan", "পাঠান", "পর্ব", "ajker", "den"]
     if any(key in text for key in keywords):
         bot.reply_to(message, "⏳ দয়া করে ধৈর্য ধরুন, শীঘ্রই আজকের এপিসোড আপলোড দেওয়া হবে।")
 

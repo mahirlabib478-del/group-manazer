@@ -54,16 +54,6 @@ def save_data(data):
 
 db = load_data()
 
-# ফন্ট সেটআপ
-FONT_PATH = "NotoSerifBengali-Regular.ttf"  # প্রজেক্টে রাখা ফন্ট ফাইলের নাম
-try:
-    bengali_font = ImageFont.truetype(FONT_PATH, 40)
-    small_font = ImageFont.truetype(FONT_PATH, 24)
-except:
-    # ফাইল না থাকলে ডিফল্ট ইংরেজি ফন্ট (বাংলা সাপোর্ট করবে না)
-    bengali_font = ImageFont.load_default()
-    small_font = ImageFont.load_default()
-
 # অ্যাডমিন চেক
 async def is_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     try:
@@ -86,68 +76,27 @@ async def send_message(context: ContextTypes.DEFAULT_TYPE, chat_id: int, text: s
     except Exception as e:
         logging.error(f"send_message failed: {e}")
 
-# ===== ইমেজ জেনারেটর =====
-def generate_welcome_image(member_name: str, group_name: str) -> BytesIO:
-    # আর্টবোর্ড সাইজ
-    W, H = 800, 400
 
-    # গাঢ় গ্রেডিয়েন্ট ব্যাকগ্রাউন্ড
-    img = Image.new("RGB", (W, H), "#1A1A2E")
-    draw = ImageDraw.Draw(img)
-    for i in range(H):
-        r = int(26 + (i / H) * 20)   # 26 → 46
-        g = int(26 + (i / H) * 10)   # 26 → 36
-        b = int(46 + (i / H) * 30)   # 46 → 76
-        draw.line([(0, i), (W, i)], fill=(r, g, b))
-
-    # মাঝখানে একটি উজ্জ্বল ওভারলে প্যানেল (গ্লাস ইফেক্ট)
-    panel = Image.new("RGBA", (600, 250), (255, 255, 255, 30))
-    img.paste(panel, (100, 75), panel)
-
-    # ডেকোরেটিভ গোল্ডেন বর্ডার
-    draw.rectangle([(100, 75), (700, 325)], outline="#F1C40F", width=3)
-
-    # টাইটেল: স্বাগতম
-    try:
-        title_font = ImageFont.truetype(FONT_PATH, 48)
-        name_font = ImageFont.truetype(FONT_PATH, 36)
-        group_font = ImageFont.truetype(FONT_PATH, 24)
-    except:
-        title_font = ImageFont.load_default()
-        name_font = ImageFont.load_default()
-        group_font = ImageFont.load_default()
-
-    draw.text((W//2, 130), "✨ স্বাগতম! ✨", fill="#F1C40F", font=title_font, anchor="mm")
-
-    # সদস্যের নাম (বড়, সাদা)
-    draw.text((W//2, 200), f"👤 {member_name}", fill="#FFFFFF", font=name_font, anchor="mm")
-
-    # গ্রুপের নাম (ছোট, ধূসর)
-    group_display = group_name if group_name else "আমাদের গ্রুপ"
-    draw.text((W//2, 270), f"🏠 {group_display}", fill="#BDC3C7", font=group_font, anchor="mm")
-
-    # নিচে একটি সোনালী লাইন
-    draw.rectangle([(250, 340), (550, 345)], fill="#F1C40F")
-
-    # প্রোফাইল ছবি যোগ করতে চাইলে (অপশনাল)
-    # সদস্যের প্রোফাইল ফটো ডাউনলোড করে এখানে পেস্ট করতে পারেন
-
-    bio = BytesIO()
-    img.save(bio, format="PNG")
-    bio.seek(0)
-    return bio
 # ===== হ্যান্ডলার =====
 async def welcome_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
     for member in update.message.new_chat_members:
-        # ছবি তৈরি
-        image_data = generate_welcome_image(member.full_name, chat.title)
-        # ছবি পাঠান
-        await context.bot.send_photo(
-            chat_id=chat.id,
-            photo=image_data,
-            caption=f"🎉 {member.full_name} কে স্বাগতম!\nনিয়ম মেনে চলার অনুরোধ রইল।"
-        )
+        # কাস্টম ছবি পাঠান (ফাইল প্রজেক্টে welcome.png নামে থাকতে হবে)
+        try:
+            with open("welcome.png", "rb") as photo:
+                await context.bot.send_photo(
+                    chat_id=chat.id,
+                    photo=photo,
+                    caption=f"🎉 {member.full_name} কে স্বাগতম!\nনিয়ম মেনে চলার অনুরোধ রইল।"
+                )
+        except FileNotFoundError:
+            # ছবি না পাওয়া গেলে শুধু টেক্সট পাঠান
+            await context.bot.send_message(
+                chat_id=chat.id,
+                text=f"👋 স্বাগতম {member.full_name}!\nনিয়ম মেনে চলার অনুরোধ রইল।"
+            )
+        except Exception as e:
+            logging.error(f"Welcome image send failed: {e}")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:

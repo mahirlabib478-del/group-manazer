@@ -1,4 +1,3 @@
-```python id="mhd3t9"
 import os
 import json
 import re
@@ -653,4 +652,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-```

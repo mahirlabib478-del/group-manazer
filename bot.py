@@ -12,7 +12,6 @@ from telegram.ext import (
     ChatJoinRequestHandler, filters, ContextTypes
 )
 from telegram.error import BadRequest, Forbidden
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 # কনফিগ
 BOT_TOKEN = "8954395264:AAF5qQGo83So7AezJB-ShloYjbGijr25tLg"

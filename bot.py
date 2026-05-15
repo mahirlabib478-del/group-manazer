@@ -23,7 +23,7 @@ from PIL import Image, ImageDraw, ImageFont
 # CONFIG
 # =========================
 
-BOT_TOKEN = os.getenv("8954395264:AAF5qQGo83So7AezJB-ShloYjbGijr25tLg")
+BOT_TOKEN = "8954395264:AAF5qQGo83So7AezJB-ShloYjbGijr25tLg"
 
 DATA_FILE = "data.json"
 

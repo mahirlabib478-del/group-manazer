@@ -55,7 +55,7 @@ def save_data(data):
 db = load_data()
 
 # ফন্ট সেটআপ
-FONT_PATH = "NotoSansBengali-Regular.ttf"  # প্রজেক্টে রাখা ফন্ট ফাইলের নাম
+FONT_PATH = "NotoSerifBengali-Regular.ttf"  # প্রজেক্টে রাখা ফন্ট ফাইলের নাম
 try:
     bengali_font = ImageFont.truetype(FONT_PATH, 40)
     small_font = ImageFont.truetype(FONT_PATH, 24)

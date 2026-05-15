@@ -36,8 +36,12 @@ def auto_moderator(message):
     user_name = message.from_user.first_name
 
     # এডমিন চেক (এখানেই পরিবর্তন করা হয়েছে)
-    if user_id in ADMIN_IDS:
-        return 
+    MY_ID = 8538304896
+    
+    print(f"User Name: {user_name}, User ID: {user_id}")
+    
+    if user_id == MY_ID:
+        return
 
     # স্টিকার বা মিডিয়া মেসেজ চেক করা
     if not message.text and not message.caption:

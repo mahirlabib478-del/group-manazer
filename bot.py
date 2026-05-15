@@ -1,6 +1,7 @@
 import os
 import json
 import re
+import asyncio
 import threading
 import logging
 from flask import Flask
@@ -9,7 +10,7 @@ from telegram.ext import (
     ChatJoinRequestHandler, filters
 )
 
-# ---------- কনফিগ ----------
+# কনফিগ
 BOT_TOKEN = "8954395264:AAF5qQGo83So7AezJB-ShloYjbGijr25tLg"
 
 DATA_FILE = "data.json"
@@ -33,7 +34,7 @@ EPISODE_PATTERN = re.compile(r'\b(?:' + '|'.join(map(re.escape, EPISODE_KEYWORDS
 
 logging.basicConfig(level=logging.INFO)
 
-# ---------- ডাটা হ্যান্ডলিং ----------
+# ডেটা ম্যানেজমেন্ট
 def load_data():
     if not os.path.exists(DATA_FILE):
         return {}
@@ -49,7 +50,7 @@ def save_data(data):
 
 db = load_data()
 
-# ---------- হেল্পার ----------
+# অ্যাডমিন চেক
 async def is_admin(update):
     try:
         chat = update.effective_chat
@@ -60,7 +61,7 @@ async def is_admin(update):
     except Exception:
         return False
 
-# ---------- হ্যান্ডলার ----------
+# মেসেজ হ্যান্ডলার
 async def handle_message(update, context):
     if not update.message or not update.message.text:
         return
@@ -71,13 +72,11 @@ async def handle_message(update, context):
     chat_id = str(update.effective_chat.id)
     user_id = str(update.effective_user.id)
 
-    # লিঙ্ক চেক
     if re.search(LINK_REGEX, text):
         await update.message.delete()
         await update.message.reply_text("🔗 লিঙ্ক শেয়ার করা নিষেধ!")
         return
 
-    # গালি চেক
     if BAD_WORD_PATTERN.search(text):
         await update.message.delete()
         if chat_id not in db:
@@ -97,38 +96,37 @@ async def handle_message(update, context):
             await update.message.reply_text(f"⚠️ গালি নিষেধ! ওয়ার্নিং: {warns}/{MAX_WARNS}")
         return
 
-    # এপিসোড রিমাইন্ডার
     if EPISODE_PATTERN.search(text):
         await update.message.reply_text("📢 এপিসোড খুব শীঘ্রই দেওয়া হবে!")
 
-# ---------- জয়েন রিকোয়েস্ট ----------
+# জয়েন রিকোয়েস্ট অ্যাপ্রুভ
 async def approve_join(update, context):
     req = update.chat_join_request
     await context.bot.approve_chat_join_request(req.chat.id, req.from_user.id)
 
-# ---------- মেইন (সিঙ্ক) ----------
+# মেইন
 if __name__ == "__main__":
-    # Flask হেলথচেক সার্ভার (ডেমন থ্রেডে)
+    # Flask হেলথচেক
     app = Flask(__name__)
-
     @app.route('/')
     def home():
         return "Bot is running"
-
     threading.Thread(
         target=app.run,
         kwargs={"host": "0.0.0.0", "port": 8080},
         daemon=True
     ).start()
 
-    # টেলিগ্রাম বট অ্যাপ্লিকেশন তৈরি
-    application = ApplicationBuilder().token(BOT_TOKEN).build()
+    # ইভেন্ট লুপ তৈরি ও সেট করা (Python 3.14 এর জন্য জরুরি)
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
 
+    # টেলিগ্রাম বট অ্যাপ্লিকেশন
+    application = ApplicationBuilder().token(BOT_TOKEN).build()
     application.add_handler(CommandHandler("start", lambda u, c: u.message.reply_text("বট সচল!")))
     application.add_handler(CommandHandler("rules", lambda u, c: u.message.reply_text("📜 নিয়ম: গালি নিষেধ, লিঙ্ক নিষেধ।")))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     application.add_handler(ChatJoinRequestHandler(approve_join))
 
     print("Bot starting...")
-    # এখানে asyncio.run() ব্যবহার না করে সরাসরি run_polling() কল করা হয়েছে
     application.run_polling()

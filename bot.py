@@ -4,7 +4,6 @@ import re
 import asyncio
 import threading
 import logging
-from io import BytesIO
 from flask import Flask
 from telegram import Update
 from telegram.ext import (
@@ -75,12 +74,11 @@ async def send_message(context: ContextTypes.DEFAULT_TYPE, chat_id: int, text: s
     except Exception as e:
         logging.error(f"send_message failed: {e}")
 
-
 # ===== হ্যান্ডলার =====
 async def welcome_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
     for member in update.message.new_chat_members:
-        # কাস্টম ছবি পাঠান (ফাইল প্রজেক্টে welcome.png নামে থাকতে হবে)
+        # কাস্টম ছবি পাঠানোর চেষ্টা
         try:
             with open("welcome.png", "rb") as photo:
                 await context.bot.send_photo(
@@ -89,13 +87,22 @@ async def welcome_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE)
                     caption=f"🎉 {member.full_name} কে স্বাগতম!\nনিয়ম মেনে চলার অনুরোধ রইল।"
                 )
         except FileNotFoundError:
-            # ছবি না পাওয়া গেলে শুধু টেক্সট পাঠান
+            # ছবি না পেলে টেক্সট
             await context.bot.send_message(
                 chat_id=chat.id,
                 text=f"👋 স্বাগতম {member.full_name}!\nনিয়ম মেনে চলার অনুরোধ রইল।"
             )
+            logging.warning("welcome.png not found, sent text welcome.")
         except Exception as e:
-            logging.error(f"Welcome image send failed: {e}")
+            # অন্য যেকোনো ত্রুটিতে টেক্সট পাঠান
+            logging.error(f"Photo send failed: {e}. Falling back to text welcome.")
+            try:
+                await context.bot.send_message(
+                    chat_id=chat.id,
+                    text=f"👋 স্বাগতম {member.full_name}!\nনিয়ম মেনে চলার অনুরোধ রইল।"
+                )
+            except Exception as fallback_error:
+                logging.error(f"Even text welcome failed: {fallback_error}")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
@@ -175,8 +182,9 @@ if __name__ == "__main__":
     # টেলিগ্রাম বট অ্যাপ্লিকেশন
     application = ApplicationBuilder().token(BOT_TOKEN).build()
 
-    application.add_handler(CommandHandler("start", ...))
-    application.add_handler(CommandHandler("rules", ...))
+    # কমান্ড হ্যান্ডলার (আগের ... সরিয়ে সঠিক ফাংশন)
+    application.add_handler(CommandHandler("start", lambda u, c: send_message(c, u.effective_chat.id, "বট সচল!")))
+    application.add_handler(CommandHandler("rules", lambda u, c: send_message(c, u.effective_chat.id, "📜 নিয়ম:\n- গালি নিষেধ\n- লিঙ্ক শেয়ার নিষেধ\n- এপিসোডের জন্য বারবার জিজ্ঞাসা নিষেধ")))
     application.add_handler(CommandHandler("admin", admin_command))
     application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_member))
     application.add_handler(ChatJoinRequestHandler(approve_join))
@@ -184,4 +192,4 @@ if __name__ == "__main__":
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     print("Bot starting...")
-    application.run_polling()  # ইভেন্ট লুপ থাকায় ঠিক চলবে
+    application.run_polling()

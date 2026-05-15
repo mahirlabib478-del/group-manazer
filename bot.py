@@ -196,6 +196,7 @@ async def approve_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ===== মেইন =====
 if __name__ == "__main__":
+    # Flask হেলথচেক
     app = Flask(__name__)
     @app.route('/')
     def home():
@@ -206,13 +207,11 @@ if __name__ == "__main__":
         daemon=True
     ).start()
 
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
+    # টেলিগ্রাম বট অ্যাপ্লিকেশন
     application = ApplicationBuilder().token(BOT_TOKEN).build()
 
-    application.add_handler(CommandHandler("start", lambda u, c: send_message(c, u.effective_chat.id, "বট সচল!")))
-    application.add_handler(CommandHandler("rules", lambda u, c: send_message(c, u.effective_chat.id, "📜 নিয়ম:\n- গালি নিষেধ\n- লিঙ্ক শেয়ার নিষেধ\n- এপিসোডের জন্য বারবার জিজ্ঞাসা নিষেধ")))
+    application.add_handler(CommandHandler("start", ...))
+    application.add_handler(CommandHandler("rules", ...))
     application.add_handler(CommandHandler("admin", admin_command))
     application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_member))
     application.add_handler(ChatJoinRequestHandler(approve_join))
@@ -220,4 +219,4 @@ if __name__ == "__main__":
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     print("Bot starting...")
-    application.run_polling()
+    application.run_polling()  # শুধু এটাই রাখবেন

@@ -12,7 +12,7 @@ from telegram.ext import (
 )
 
 # =========================
-# CONFIGURATION & DATA
+# CONFIG & DATA
 # =========================
 BOT_TOKEN = "8954395264:AAF5qQGo83So7AezJB-ShloYjbGijr25tLg"
 DATA_FILE = "data.json"
@@ -25,7 +25,7 @@ LINK_REGEX = r"(https?://\S+|t\.me/\S+|@\w+)"
 logging.basicConfig(level=logging.INFO)
 
 # =========================
-# DATA MANAGEMENT (With Error Handling)
+# UTILS & DATA
 # =========================
 def load_data():
     if not os.path.exists(DATA_FILE): return {}
@@ -34,86 +34,79 @@ def load_data():
     except: return {}
 
 def save_data(data):
-    try:
-        with open(DATA_FILE, "w", encoding="utf-8") as f: json.dump(data, f, indent=4)
-    except Exception as e: logging.error(f"Save error: {e}")
+    with open(DATA_FILE, "w", encoding="utf-8") as f: json.dump(data, f, indent=4)
 
 data = load_data()
 
-# =========================
-# UTILS (Admin Check & User Data)
-# =========================
+# এটিই সেই অ্যাডমিন ফাংশন যা আপনার বটের সুরক্ষা নিশ্চিত করবে
 async def is_admin(update: Update):
     if not update.effective_chat or update.effective_chat.type == 'private': return False
     try:
-        member = await update.effective_chat.get_member(update.effective_user.id)
-        return member.status in ['creator', 'administrator']
+        # বটের কাছে অ্যাডমিন লিস্ট চাওয়া
+        admins = await update.effective_chat.get_administrators()
+        admin_ids =[admin.user.id for admin in admins]
+        return update.effective_user.id in admin_ids
     except: return False
-
-def get_user_warns(chat_id, user_id):
-    c, u = str(chat_id), str(user_id)
-    if c not in data: data[c] = {}
-    if u not in data[c]: data[c][u] = 0
-    return data[c][u]
 
 # =========================
 # HANDLERS
 # =========================
-async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("বট সক্রিয় আছে!")
+async def start_cmd(u, c): await u.message.reply_text("✅ বট সক্রিয়!")
 
-async def rules_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("📜 নিয়ম: গালি নিষেধ, লিঙ্ক নিষেধ।")
-
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.message or not update.message.text: return
-    if await is_admin(update): return # অ্যাডমিন হলে বট কোনো কাজ করবে না
-
-    text = update.message.text.lower()
-    chat_id = update.effective_chat.id
-    user_id = update.effective_user.id
+async def handle_message(u: Update, c: ContextTypes.DEFAULT_TYPE):
+    if not u.message or not u.message.text: return
     
+    # [গুরুত্বপূর্ণ] প্রতিটি মেসেজে আগে অ্যাডমিন চেক করা হচ্ছে
+    if await is_admin(u): return 
+
+    text = u.message.text.lower()
+    chat_id, user_id = str(u.effective_chat.id), str(u.effective_user.id)
+    username = u.effective_user.first_name
+
     # 1. লিঙ্ক ফিল্টার
     if re.search(LINK_REGEX, text):
-        await update.message.delete()
-        await update.message.reply_text("🔗 অনুমতি ছাড়া লিঙ্ক শেয়ার করা নিষেধ!")
+        await u.message.delete()
+        await u.message.reply_text(f"🔗 {username}, অনুমতি ছাড়া লিঙ্ক শেয়ার করা নিষেধ!")
         return
 
-    # 2. ব্যাড ওয়ার্ড এবং ওয়ার্নিং
+    # 2. ব্যাড ওয়ার্ড এবং ওয়ার্নিং সিস্টেম
     if any(w in text for w in BAD_WORDS):
-        await update.message.delete()
-        warns = get_user_warns(chat_id, user_id) + 1
-        data[str(chat_id)][str(user_id)] = warns
+        await u.message.delete()
+        if chat_id not in data: data[chat_id] = {}
+        if user_id not in data[chat_id]: data[chat_id][user_id] = 0
+        
+        data[chat_id][user_id] += 1
+        warns = data[chat_id][user_id]
         save_data(data)
         
         if warns >= MAX_WARNS:
-            await context.bot.ban_chat_member(chat_id, user_id)
-            await update.message.reply_text(f"🚫 {update.effective_user.first_name} কে ৩ বার নিয়ম ভঙ্গের জন্য ব্যান করা হয়েছে।")
-            data[str(chat_id)][str(user_id)] = 0 # রিসেট
+            await c.bot.ban_chat_member(u.effective_chat.id, user_id)
+            await u.message.reply_text(f"🚫 {username}, ৩ বার নিয়ম ভঙ্গের জন্য ব্যান করা হয়েছে।")
+            data[chat_id][user_id] = 0
             save_data(data)
         else:
-            await update.message.reply_text(f"⚠️ {update.effective_user.first_name}, গালি দেওয়া নিষেধ! ওয়ার্নিং: {warns}/{MAX_WARNS}")
+            await u.message.reply_text(f"⚠️ {username}, গালি দেওয়া নিষেধ! ওয়ার্নিং: {warns}/{MAX_WARNS}")
         return
 
     # 3. এপিসোড রিকোয়েস্ট
     if any(k in text for k in EPISODE_KEYWORDS):
-        await update.message.reply_text("📢 এপিসোড খুব শীঘ্রই দেওয়া হবে!")
+        await u.message.reply_text("📢 এপিসোড খুব শীঘ্রই দেওয়া হবে, ধৈর্য ধরুন!")
 
-async def join_req(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.approve_chat_join_request(update.chat_join_request.chat.id, update.chat_join_request.from_user.id)
-    await context.bot.send_message(update.chat_join_request.chat.id, f"🎉 স্বাগতম {update.chat_join_request.from_user.first_name}!")
+async def join_req(u, c):
+    await c.bot.approve_chat_join_request(u.chat_join_request.chat.id, u.chat_join_request.from_user.id)
+    await c.bot.send_message(u.chat_join_request.chat.id, f"🎉 স্বাগতম {u.chat_join_request.from_user.first_name}!")
 
 # =========================
 # MAIN APP
 # =========================
 app = Flask(__name__)
 @app.route('/')
-def home(): return "Bot is Running"
+def home(): return "Bot is Online"
 
 async def run_bot():
     bot_app = ApplicationBuilder().token(BOT_TOKEN).build()
+    
     bot_app.add_handler(CommandHandler("start", start_cmd))
-    bot_app.add_handler(CommandHandler("rules", rules_cmd))
     bot_app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     bot_app.add_handler(ChatJoinRequestHandler(join_req))
     

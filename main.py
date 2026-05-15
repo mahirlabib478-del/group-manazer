@@ -36,11 +36,12 @@ def auto_moderator(message):
     user_name = message.from_user.first_name
 
     # Auto admin detect
-    admins = bot.get_chat_administrators(chat_id)
-    admin_ids = [admin.user.id for admin in admins]
-
-    if user_id in admin_ids:
-        return
+    try:
+        chat_member = bot.get_chat_member(chat_id, user_id)
+        if chat_member.status in ['administrator', 'creator']:
+            return  # অ্যাডমিন হলে এখানেই কোড থেমে যাবে, নিচের মডারেশন চেক করবে না
+    except Exception as e:
+        print(f"Admin check error: {e}")
     
     text = (message.text or message.caption).lower()
 

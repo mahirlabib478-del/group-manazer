@@ -5,8 +5,8 @@ from flask import Flask
 
 # TOKEN এনভায়রনমেন্ট ভেরিয়েবল থেকে নেয়া হচ্ছে
 TOKEN = "8954395264:AAGtLtIHsNN-HDYDCFylEBV_IJ0X7-JvSaU"
-ADMIN_IDS = [8538304896, 2035024902] 
 bot = telebot.TeleBot(TOKEN)
+ADMIN_IDS = [8538304896, 2035024902]
 app = Flask(__name__)
 
 # গালিগালাজের তালিকা
@@ -35,14 +35,12 @@ def auto_moderator(message):
     user_id = message.from_user.id
     user_name = message.from_user.first_name
 
-    # এডমিন চেক (এখানেই পরিবর্তন করা হয়েছে)
-    MY_ID = 8538304896
-    
+    # এডমিন চেক
     print(f"User Name: {user_name}, User ID: {user_id}")
-    
-    if user_id == MY_ID:
-        return
 
+    if user_id in ADMIN_IDS:
+        print("ADMIN DETECTED")
+        return
     # স্টিকার বা মিডিয়া মেসেজ চেক করা
     if not message.text and not message.caption:
         return

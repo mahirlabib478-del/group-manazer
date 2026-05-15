@@ -42,7 +42,7 @@ def auto_moderator(message):
     # এডমিন চেক (এডমিনদের কোনো বাধা নেই)
     try:
         member = bot.get_chat_member(chat_id, user_id)
-     if member.status in ["administrator", "creator"]:
+    if member.status in ["administrator", "creator"]:
             return
         except:
           pass
@@ -67,7 +67,7 @@ def auto_moderator(message):
         # ওয়ার্নিং কাউন্ট আপডেট
         warnings[user_id] = warnings.get(user_id, 0) + 1
         
-        if warnings[user_id] >= 3:
+    if warnings[user_id] >= 3:
             bot.ban_chat_member(chat_id, user_id)
             bot.send_message(chat_id, f"🚫 {user_name} কে ৩ বার গালি দেওয়ার কারণে স্থায়ীভাবে ব্যান করা হয়েছে।")
         else:
@@ -75,7 +75,7 @@ def auto_moderator(message):
         return
 
     # ৩. এপিসোড রিলেটেড অটো রিপ্লাই
-    keywords =["episode", "ep", "এপিসোড", "দিবেন", "কখন", "kokhon", "diben", "দেন", "দ্রুত", "druto", "pathan", "পাঠান", "পর্ব", "ajker", "den"]
+         keywords =["episode", "ep", "এপিসোড", "দিবেন", "কখন", "kokhon", "diben", "দেন", "দ্রুত", "druto", "pathan", "পাঠান", "পর্ব", "ajker", "den"]
     if any(key in text for key in keywords):
         bot.reply_to(message, "⏳ দয়া করে ধৈর্য ধরুন, শীঘ্রই আজকের এপিসোড আপলোড দেওয়া হবে।")
 
@@ -84,7 +84,7 @@ def auto_moderator(message):
 def home():
     return "Bot is running perfectly!"
 
-if __name__ == "__main__":
+    if __name__ == "__main__":
     # Flask সার্ভার চালু করা
     threading.Thread(target=lambda: app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))).start()
     # বট পোলিং শুরু করা

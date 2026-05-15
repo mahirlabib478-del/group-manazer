@@ -33,10 +33,7 @@ def approve_request(request):
 # --- মূল মডারেশন লজিক ---
 @bot.message_handler(func=lambda message: True)
 def auto_moderator(message):
-    # স্টিকার বা মিডিয়া মেসেজ চেক করা
-    if not message.text and not message.caption:
-        return
-    
+
     text = (message.text or message.caption).lower()
     chat_id = message.chat.id
     user_id = message.from_user.id
@@ -45,10 +42,17 @@ def auto_moderator(message):
     # এডমিন চেক (এডমিনদের কোনো বাধা নেই)
     try:
         member = bot.get_chat_member(chat_id, user_id)
-        if member.status in ["administrator", "creator"]:
+     if member.status in ["administrator", "creator"]:
             return
-    except:
-        pass
+        except:
+          pass
+    
+    # স্টিকার বা মিডিয়া মেসেজ চেক করা
+    if not message.text and not message.caption:
+        return
+    
+      text = (message.text or message.caption).lower()
+    
 
     # ১. এন্টি-লিংক সিস্টেম
     if any(x in text for x in["http", "t.me", "www.", ".com"]):
